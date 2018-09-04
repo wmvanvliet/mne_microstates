@@ -55,10 +55,10 @@ def microstates_raw(raw, n_states=4, n_inits=10, max_iter=1000, thresh=1e-6,
     max_n_peaks : int
         Maximum number of GFP peaks to use in the k-means algorithm. Chosen
         randomly. Defaults to 10000. 
-    random_state : int | None
-        The seed for the random number generator. Defaults to ``None``, in
-        which case a different seed is chosen each time this function is
-        called.
+    random_state : int | numpy.random.RandomState | None
+        The seed or ``RandomState`` for the random number generator. Defaults
+        to ``None``, in which case a different seed is chosen each time this
+        function is called.
     verbose : int | bool | None
         Controls the verbosity.
 
@@ -187,6 +187,11 @@ def microstates_array(data, n_states=4, n_inits=10, max_iter=1000, thresh=1e-6,
 @verbose
 def _mod_kmeans(data, n_states=4, n_inits=10, max_iter=1000, thresh=1e-6,
                 random_state=None, verbose=None):
+    """The modified K-means clustering algorithm.
+
+    See :func:`microstates_array` for the meaning of the parameters and return
+    values.
+    """
     if not isinstance(random_state, np.random.RandomState):
         random_state = np.random.RandomState(random_state)
 
