@@ -13,16 +13,16 @@ import warnings
 import numpy as np
 from scipy.stats import zscore
 from scipy.signal import find_peaks
+import matplotlib as mpl
 from matplotlib import pyplot as plt
-from matplotlib.ticker import MultipleLocator
 import mne
 from mne.utils import logger, verbose
 
 
 @verbose
-def microstates_raw(raw, n_states=4, n_inits=10, max_iter=1000, thresh=1e-6,
-                    normalize=False, min_peak_dist=0, max_n_peaks=10000,
-                    random_state=None, verbose=None):
+def segment(data, n_states=4, n_inits=10, max_iter=1000, thresh=1e-6,
+            normalize=False, min_peak_dist=2, max_n_peaks=10000,
+            random_state=None, verbose=None):
     """Segment a continuous signal into microstates.
 
     Peaks in the global field power (GFP) are used to find microstates, using a
@@ -50,8 +50,8 @@ def microstates_raw(raw, n_states=4, n_inits=10, max_iter=1000, thresh=1e-6,
     normalize : bool
         Whether to normalize (z-score) the data across time before running the
         k-means algorithm. Defaults to ``False``.
-    min_peak_dist : float
-        Minimum distance (in seconds) between peaks in the GFP. Defaults to 0.
+    min_peak_dist : int
+        Minimum distance (in samples) between peaks in the GFP. Defaults to 2.
     max_n_peaks : int
         Maximum number of GFP peaks to use in the k-means algorithm. Chosen
         randomly. Defaults to 10000. 
@@ -77,11 +77,14 @@ def microstates_raw(raw, n_states=4, n_inits=10, max_iter=1000, thresh=1e-6,
            estimation and validation. IEEE Transactions on Biomedical
            Engineering.
     """
+    logger.info('Finding %d microstates, using %d random intitializations' %
+                (n_states, n_inits))
+
     # Convert min_peak_dist to samples
-    min_peak_dist = 1 + int(round(min_peak_dist * raw.info['sfreq']))
+    # min_peak_dist = 1 + int(round(min_peak_dist * raw.info['sfreq']))
 
     # Find peaks in the global field power (GFP)
-    gfp = np.std(raw.get_data(), axis=0)
+    gfp = np.sqrt(np.sum(data ** 2, axis=0))
     peaks, _ = find_peaks(gfp, distance=min_peak_dist)
     n_peaks = len(peaks)
 
@@ -95,73 +98,10 @@ def microstates_raw(raw, n_states=4, n_inits=10, max_iter=1000, thresh=1e-6,
         peaks = peaks[chosen_peaks]
 
     # Run microstates analysis on selected data
-    data = raw.get_data()[:, peaks]
-    return microstates_array(data, n_states, n_inits, max_iter, thresh,
-                             normalize, random_state, verbose)
-
-
-@verbose
-def microstates_array(data, n_states=4, n_inits=10, max_iter=1000, thresh=1e-6,
-                      normalize=False, random_state=None, verbose=None):
-    """Segment a signal into microstates.
-
-    Several runs of the modified K-means algorithms are performed, using
-    different random initializations. The run that resulted in the best
-    segmentation, as measured by global explained variance (GEV), is used.
-
-    Notes
-    -----
-    This function performs no selection of the data.
-
-    Parameters
-    ----------
-    data : ndarray, shape (n_channels, n_samples)
-        The data to find the microstates in
-    n_states : int
-        The number of unique microstates to find. Defaults to 4.
-    n_inits : int
-        The number of random initializations to use for the k-means algorithm.
-        The best fitting segmentation across all initializations is used.
-        Defaults to 10.
-    max_iter : int
-        The maximum number of iterations to perform in the k-means algorithm.
-        Defaults to 1000.
-    thresh : float
-        The threshold of convergence for the k-means algorithm, based on
-        relative change in noise variance. Defaults to 1e-6.
-    normalize : bool
-        Whether to normalize (z-score) the data across time before running the
-        k-means algorithm. Defaults to ``False``.
-    random_state : int | None
-        The seed for the random number generator. Defaults to ``None``, in
-        which case a different seed is chosen each time this function is
-        called.
-    verbose : int | bool | None
-        Controls the verbosity.
-
-    Returns
-    -------
-    maps : ndarray, shape (n_channels, n_states)
-        The topographic maps of the found unique microstates.
-    assignment : ndarray, shape (n_samples,)
-        For each sample, the index of the microstate to which the sample has
-        been assigned.
-
-    References
-    ----------
-    .. [1] Pascual-Marqui, R. D., Michel, C. M., & Lehmann, D. (1995).
-           Segmentation of brain electrical activity into microstates: model
-           estimation and validation. IEEE Transactions on Biomedical
-           Engineering.
-    """
-    logger.info('Finding %d microstates, using %d random intitializations' %
-                (n_states, n_inits))
-
     if normalize:
         data = zscore(data, axis=1)
 
-    # Compute global field power (GFP)
-    gfp = np.std(data, axis=0)
+    # Cache this value for later
     gfp_sum_sq = np.sum(gfp ** 2)
 
     # Do several runs of the k-means algorithm, keep track of the best
@@ -275,7 +215,7 @@ def _corr_vectors(A, B, axis=0):
     return np.sum(An * Bn, axis=axis)
 
 
-def plot_assignment(assignment, times):
+def plot_assignment(assignment, data, times):
     """Plot a microstate segmentation.
 
     Parameters
@@ -286,14 +226,22 @@ def plot_assignment(assignment, times):
     times : list of float
         The time-stamp for each sample.
     """
-    plt.figure(figsize=(6 * np.ptp(times), len(np.unique(assignment)) / 2.))
-    for state in np.unique(assignment):
-        idx = (assignment == state)
-        plt.scatter(times[idx], state * np.ones(np.sum(idx)))
-    plt.gca().yaxis.set_minor_locator(MultipleLocator(1))
-    plt.grid(which='minor', axis='y', linestyle='solid', color='black')
-    plt.ylabel('State')
+    gfp = np.sqrt(np.sum(data ** 2, axis=0))
+
+    n_states = len(np.unique(assignment))
+    plt.figure(figsize=(6 * np.ptp(times), 2))
+    cmap = plt.cm.get_cmap('plasma', n_states)
+    plt.plot(times, gfp, color='black', linewidth=1)
+    for state, color in zip(range(n_states), cmap.colors):
+        plt.fill_between(times, gfp, where=(assignment == state), color=color)
+    norm = mpl.colors.Normalize(vmin=0, vmax=n_states)
+    sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
+    sm.set_array([])
+    plt.colorbar(sm)
+    plt.yticks([])
     plt.xlabel('Time (s)')
+    plt.title('Segmentation into %d microstates' % n_states)
+    plt.autoscale(tight=True)
     plt.tight_layout()
 
 
