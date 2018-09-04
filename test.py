@@ -19,8 +19,9 @@ picks = mne.pick_types(raw.info, meg=False, eeg=True)
 epochs = mne.Epochs(raw, events, event_id=[1, 2], tmin=-0.1, tmax=0.8,
                     picks=picks, preload=True)
 epochs.set_eeg_reference('average')
+evoked = epochs.average()
 
-maps, assignment = microstates.find_microstates(epochs.get_data()[0], n_states=6)
+maps, assignment = microstates.find_microstates(evoked.data, n_states=4, verbose=True)
 
 microstates.plot_maps(maps, epochs.info)
 microstates.plot_assignment(assignment[:epochs.get_data().shape[2]], epochs.times)

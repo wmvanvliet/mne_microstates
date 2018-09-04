@@ -14,15 +14,40 @@ import numpy as np
 from scipy.stats import zscore
 from matplotlib import pyplot as plt
 import mne
+from mne.utils import logger, verbose
 
 
+@verbose
 def find_microstates(data, n_states=4, n_inits=10, max_iter=1000, thresh=1e-6,
-                     smoothing_width=0, smoothing_weight=5, random_state=None):
-    return _mod_kmeans(data, n_states, n_inits, max_iter, thresh, random_state)
+                     normalize=False, random_state=None, verbose=None):
+    logger.info('Finding %d microstates, using %d random intitializations' %
+                (n_states, n_inits))
+
+    # Compute global field power (GFP)
+    gfp = np.std(data, axis=0)
+    gfp_sum_sq = np.sum(gfp ** 2)
+
+    best_gev = 0
+    best_maps = None
+    best_assignment = None
+    for _ in range(n_inits):
+        maps, assignment = _mod_kmeans(data, n_states, n_inits, max_iter,
+                                       thresh, random_state, verbose)
+        map_corr = columncorr(data, maps[assignment].T)
+        
+        # Compare across iterations using global explained variance (GEV) of
+        # the found microstates.
+        gev = sum((gfp * map_corr) ** 2) / gfp_sum_sq
+        logger.info('GEV of found microstates: %f' % gev)
+        if gev > best_gev:
+            best_gev, best_maps, best_assignment = gev, maps, assignment
+
+    return best_maps, best_assignment
 
 
+@verbose
 def _mod_kmeans(data, n_states=4, n_inits=10, max_iter=1000, thresh=1e-6,
-                random_state=None):
+                random_state=None, verbose=None):
     """Segment a signal into microstates using the modified K-means algorithm.
 
     Several runs of the algorithms are performed, using different random
@@ -71,8 +96,7 @@ def _mod_kmeans(data, n_states=4, n_inits=10, max_iter=1000, thresh=1e-6,
     n_channels, n_samples = data.shape
     rnd = np.random.RandomState(random_state)
 
-    # gfp = np.std(X, axis=0)
-    # gfp_sum_sq = np.sum(gfp ** 2)
+    # Cache this value for later
     data_sum_sq = np.sum(data ** 2)
 
     # Select random timepoints for our initial topographic maps
@@ -91,19 +115,20 @@ def _mod_kmeans(data, n_states=4, n_inits=10, max_iter=1000, thresh=1e-6,
         for state in range(n_states):
             idx = (assignments == state)
             if np.sum(idx) == 0:
-                print('help!')
+                warnings.warn('Some microstates are never activated')
+                maps[state] = 0
                 continue
             maps[state] = data[:, idx].dot(activation[state, idx])
             maps[state] /= np.linalg.norm(maps[state])
 
         # Estimate residual noise
-        residual = (data_sum_sq -
-                    np.sum(np.sum(maps[assignments].T * data, axis=0) ** 2))
+        act_sum_sq = np.sum(np.sum(maps[assignments].T * data, axis=0) ** 2)
+        residual = abs(data_sum_sq - act_sum_sq)
         residual /= float(n_samples * (n_channels - 1))
 
         # Have we converged?
-        if abs(prev_residual - residual) < abs(thresh * residual):
-            print('Converged at', iteration, 'iterations.')
+        if (prev_residual - residual) < (thresh * residual):
+            logger.info('Converged at %d iterations.' % iteration)
             break
 
         prev_residual = residual
@@ -131,3 +156,17 @@ def plot_maps(maps, info):
     for i, map in enumerate(maps, 1):
         plt.subplot(1, len(maps), i)
         mne.viz.plot_topomap(map, l.pos[:, :2])
+
+
+def columncorr(A, B):
+    """Fast way to compute correlation of multiple pairs of vectors without
+    computing all pairs as would with corr(A,B). Borrowed from Oli at Stack
+    overflow. Note the resulting coefficients vary slightly from the ones
+    obtained from corr due differences in the order of the calculations.
+    (Differences are of a magnitude of 1e-9 to 1e-17 depending of the tested
+    data)."""
+    An = A - np.mean(A, axis=0)
+    Bn = B - np.mean(B, axis=0)
+    An /= np.sqrt(np.sum(An ** 2, axis=0))
+    Bn /= np.sqrt(np.sum(Bn ** 2, axis=0))
+    return np.sum(An * Bn, axis=0)
