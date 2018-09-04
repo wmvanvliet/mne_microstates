@@ -14,8 +14,9 @@ raw.filter(1, 40)
 raw.pick_types(meg='mag', eeg=False)
 
 # Segment the data in 6 microstates
-maps, assignment = microstates.microstates_raw(raw, n_states=5, n_inits=100)
+maps, segmentation = microstates.microstates_raw(raw, n_states=6)
 
 # Plot the topographic maps of the microstates and the segmentation
 microstates.plot_maps(maps, raw.info)
-microstates.plot_assignment(assignment[:500], raw.get_data()[:, :500], raw.times[:500])
+microstates.plot_segmentation(segmentation[:500], raw.get_data()[:, :500],
+                              raw.times[:500])

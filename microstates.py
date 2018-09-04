@@ -54,7 +54,7 @@ def segment(data, n_states=4, n_inits=10, max_iter=1000, thresh=1e-6,
         Minimum distance (in samples) between peaks in the GFP. Defaults to 2.
     max_n_peaks : int
         Maximum number of GFP peaks to use in the k-means algorithm. Chosen
-        randomly. Defaults to 10000. 
+        randomly. Defaults to 10000.
     random_state : int | numpy.random.RandomState | None
         The seed or ``RandomState`` for the random number generator. Defaults
         to ``None``, in which case a different seed is chosen each time this
@@ -66,7 +66,7 @@ def segment(data, n_states=4, n_inits=10, max_iter=1000, thresh=1e-6,
     -------
     maps : ndarray, shape (n_channels, n_states)
         The topographic maps of the found unique microstates.
-    assignment : ndarray, shape (n_samples,)
+    segmentation : ndarray, shape (n_samples,)
         For each sample, the index of the microstate to which the sample has
         been assigned.
 
@@ -108,20 +108,20 @@ def segment(data, n_states=4, n_inits=10, max_iter=1000, thresh=1e-6,
     # segmentation.
     best_gev = 0
     best_maps = None
-    best_assignment = None
+    best_segmentation = None
     for _ in range(n_inits):
-        maps, assignment = _mod_kmeans(data, n_states, n_inits, max_iter,
-                                       thresh, random_state, verbose)
-        map_corr = _corr_vectors(data, maps[assignment].T)
+        maps, segmentation = _mod_kmeans(data, n_states, n_inits, max_iter,
+                                         thresh, random_state, verbose)
+        map_corr = _corr_vectors(data, maps[segmentation].T)
 
         # Compare across iterations using global explained variance (GEV) of
         # the found microstates.
         gev = sum((gfp * map_corr) ** 2) / gfp_sum_sq
         logger.info('GEV of found microstates: %f' % gev)
         if gev > best_gev:
-            best_gev, best_maps, best_assignment = gev, maps, assignment
+            best_gev, best_maps, best_segmentation = gev, maps, segmentation
 
-    return best_maps, best_assignment
+    return best_maps, best_segmentation
 
 
 @verbose
@@ -149,13 +149,13 @@ def _mod_kmeans(data, n_states=4, n_inits=10, max_iter=1000, thresh=1e-6,
     for iteration in range(max_iter):
         # Assign each sample to the best matching microstate
         activation = maps.dot(data)
-        assignments = np.argmax(activation ** 2, axis=0)
-        # assigned_activations = np.choose(assignments, all_activations)
+        segmentations = np.argmax(activation ** 2, axis=0)
+        # assigned_activations = np.choose(segmentations, all_activations)
 
         # Recompute the topographic maps of the microstates, based on the
         # samples that were assigned to each state.
         for state in range(n_states):
-            idx = (assignments == state)
+            idx = (segmentations == state)
             if np.sum(idx) == 0:
                 warnings.warn('Some microstates are never activated')
                 maps[state] = 0
@@ -164,7 +164,7 @@ def _mod_kmeans(data, n_states=4, n_inits=10, max_iter=1000, thresh=1e-6,
             maps[state] /= np.linalg.norm(maps[state])
 
         # Estimate residual noise
-        act_sum_sq = np.sum(np.sum(maps[assignments].T * data, axis=0) ** 2)
+        act_sum_sq = np.sum(np.sum(maps[segmentations].T * data, axis=0) ** 2)
         residual = abs(data_sum_sq - act_sum_sq)
         residual /= float(n_samples * (n_channels - 1))
 
@@ -177,11 +177,11 @@ def _mod_kmeans(data, n_states=4, n_inits=10, max_iter=1000, thresh=1e-6,
     else:
         warnings.warn('Modified K-means algorithm failed to converge.')
 
-    # Compute final microstate assignments
+    # Compute final microstate segmentations
     activation = maps.dot(data)
-    assignments = np.argmax(activation ** 2, axis=0)
+    segmentations = np.argmax(activation ** 2, axis=0)
 
-    return maps, assignments
+    return maps, segmentations
 
 
 def _corr_vectors(A, B, axis=0):
@@ -215,12 +215,12 @@ def _corr_vectors(A, B, axis=0):
     return np.sum(An * Bn, axis=axis)
 
 
-def plot_assignment(assignment, data, times):
+def plot_segmentation(segmentation, data, times):
     """Plot a microstate segmentation.
 
     Parameters
     ----------
-    assignment : list of int
+    segmentation : list of int
         For each sample in time, the index of the state to which the sample has
         been assigned.
     times : list of float
@@ -228,12 +228,13 @@ def plot_assignment(assignment, data, times):
     """
     gfp = np.sqrt(np.sum(data ** 2, axis=0))
 
-    n_states = len(np.unique(assignment))
+    n_states = len(np.unique(segmentation))
     plt.figure(figsize=(6 * np.ptp(times), 2))
     cmap = plt.cm.get_cmap('plasma', n_states)
     plt.plot(times, gfp, color='black', linewidth=1)
     for state, color in zip(range(n_states), cmap.colors):
-        plt.fill_between(times, gfp, where=(assignment == state), color=color)
+        plt.fill_between(times, gfp, color=color,
+                         where=(segmentation == state))
     norm = mpl.colors.Normalize(vmin=0, vmax=n_states)
     sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
     sm.set_array([])
