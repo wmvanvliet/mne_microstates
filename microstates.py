@@ -27,7 +27,7 @@ def segment(data, n_states=4, n_inits=10, max_iter=1000, thresh=1e-6,
     """Segment a continuous signal into microstates.
 
     Peaks in the global field power (GFP) are used to find microstates, using a
-    modified K-means algorithm. Several runs of the modified K-means algorithms
+    modified K-means algorithm. Several runs of the modified K-means algorithm
     are performed, using different random initializations. The run that
     resulted in the best segmentation, as measured by global explained variance
     (GEV), is used.
