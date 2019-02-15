@@ -130,7 +130,7 @@ def _mod_kmeans(data, n_states=4, n_inits=10, max_iter=1000, thresh=1e-6,
                 random_state=None, verbose=None):
     """The modified K-means clustering algorithm.
 
-    See :func:`microstates_array` for the meaning of the parameters and return
+    See :func:`segment` for the meaning of the parameters and return
     values.
     """
     if not isinstance(random_state, np.random.RandomState):
