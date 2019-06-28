@@ -81,11 +81,11 @@ def segment(data, n_states=4, n_inits=10, max_iter=1000, thresh=1e-6,
     logger.info('Finding %d microstates, using %d random intitializations' %
                 (n_states, n_inits))
 
-    # Convert min_peak_dist to samples
-    # min_peak_dist = 1 + int(round(min_peak_dist * raw.info['sfreq']))
+    if normalize:
+        data = zscore(data, axis=1)
 
     # Find peaks in the global field power (GFP)
-    gfp = data.std(axis=0)
+    gfp = np.mean(data ** 2, axis=0)
     peaks, _ = find_peaks(gfp, distance=min_peak_dist)
     n_peaks = len(peaks)
 
@@ -97,10 +97,6 @@ def segment(data, n_states=4, n_inits=10, max_iter=1000, thresh=1e-6,
         chosen_peaks = random_state.choice(n_peaks, size=max_n_peaks,
                                            replace=False)
         peaks = peaks[chosen_peaks]
-
-    # Run microstates analysis on selected data
-    if normalize:
-        data = zscore(data, axis=1)
 
     # Cache this value for later
     gfp_sum_sq = np.sum(gfp ** 2)
@@ -231,7 +227,7 @@ def plot_segmentation(segmentation, data, times):
     times : list of float
         The time-stamp for each sample.
     """
-    gfp = data.std(axis=0)
+    gfp = np.mean(data ** 2, axis=0)
 
     n_states = len(np.unique(segmentation))
     plt.figure(figsize=(6 * np.ptp(times), 2))
