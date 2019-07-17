@@ -30,7 +30,7 @@ and MEG data.
     microstates.plot_maps(maps, raw.info)
 
     # Plot the segmentation of the first 500 samples
-    microstates.plot_assignment(assignment[:500], raw.times[:500])
+    microstates.plot_segmentation(assignment[:500], raw.times[:500])
 
 ## Author
 Marijn van Vliet <w.m.vanvliet@gmail.com>
