@@ -165,7 +165,7 @@ def _mod_kmeans(data, n_states=4, n_inits=10, max_iter=1000, thresh=1e-6,
             maps[state] /= np.linalg.norm(maps[state])
 
         # Estimate residual noise
-        act_sum_sq = np.sum((maps[segmentation].T * data) ** 2)
+        act_sum_sq = np.sum(np.sum(maps[segmentation].T * data, axis=0) ** 2)
         residual = abs(data_sum_sq - act_sum_sq)
         residual /= float(n_samples * (n_channels - 1))
 
