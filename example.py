@@ -22,7 +22,8 @@ raw = ica.apply(raw)
 raw.pick_types(meg='mag', eeg=False)
 
 # Segment the data in 6 microstates
-maps, segmentation = microstates.segment(raw.get_data(), n_states=5)
+maps, segmentation = microstates.segment(raw.get_data(), n_states=5,
+                                         random_state=0)
 
 # Plot the topographic maps of the microstates and the segmentation
 microstates.plot_maps(maps, raw.info)

@@ -53,9 +53,9 @@ def segment(data, n_states=4, n_inits=10, max_iter=1000, thresh=1e-6,
         k-means algorithm. Defaults to ``False``.
     min_peak_dist : int
         Minimum distance (in samples) between peaks in the GFP. Defaults to 2.
-    max_n_peaks : int
+    max_n_peaks : int | None
         Maximum number of GFP peaks to use in the k-means algorithm. Chosen
-        randomly. Defaults to 10000.
+        randomly. Set to ``None`` to use all data. Defaults to 10000.
     random_state : int | numpy.random.RandomState | None
         The seed or ``RandomState`` for the random number generator. Defaults
         to ``None``, in which case a different seed is chosen each time this
@@ -107,8 +107,10 @@ def segment(data, n_states=4, n_inits=10, max_iter=1000, thresh=1e-6,
     best_maps = None
     best_segmentation = None
     for _ in range(n_inits):
-        maps, segmentation = _mod_kmeans(data, n_states, n_inits, max_iter,
-                                         thresh, random_state, verbose)
+        maps = _mod_kmeans(data[:, peaks], n_states, n_inits, max_iter, thresh,
+                           random_state, verbose)
+        activation = maps.dot(data)
+        segmentation = np.argmax(activation ** 2, axis=0)
         map_corr = _corr_vectors(data, maps[segmentation].T)
 
         # Compare across iterations using global explained variance (GEV) of
@@ -178,11 +180,7 @@ def _mod_kmeans(data, n_states=4, n_inits=10, max_iter=1000, thresh=1e-6,
     else:
         warnings.warn('Modified K-means algorithm failed to converge.')
 
-    # Compute final microstate segmentations
-    activation = maps.dot(data)
-    segmentation = np.argmax(activation ** 2, axis=0)
-
-    return maps, segmentation
+    return maps
 
 
 def _corr_vectors(A, B, axis=0):
@@ -259,8 +257,9 @@ def plot_maps(maps, info):
         sensors.
     """
     plt.figure(figsize=(2 * len(maps), 2))
-    layout = mne.channels.find_layout(info)
+    #layout = mne.channels.find_layout(info)
     for i, map in enumerate(maps):
         plt.subplot(1, len(maps), i + 1)
-        mne.viz.plot_topomap(map, layout.pos[:, :2])
+        #mne.viz.plot_topomap(map, layout.pos[:, :2])
+        mne.viz.plot_topomap(map, info)
         plt.title('%d' % i)

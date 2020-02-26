@@ -13,7 +13,7 @@ if __name__ == "__main__":
         description='Code for microstate analysis, in combination with MNE-Python.',
         license='BSD-3',
         url='https://github.com/wmvanvliet/mne_microstates',
-        version='0.1',
+        version='0.2',
         long_description=open('README.md').read(),
         classifiers=['Intended Audience :: Science/Research',
                      'Intended Audience :: Developers',
