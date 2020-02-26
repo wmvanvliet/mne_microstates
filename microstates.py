@@ -55,7 +55,7 @@ def segment(data, n_states=4, n_inits=10, max_iter=1000, thresh=1e-6,
         Minimum distance (in samples) between peaks in the GFP. Defaults to 2.
     max_n_peaks : int | None
         Maximum number of GFP peaks to use in the k-means algorithm. Chosen
-        randomly. Set to ``None`` to use all data. Defaults to 10000.
+        randomly. Set to ``None`` to use all peaks. Defaults to 10000.
     random_state : int | numpy.random.RandomState | None
         The seed or ``RandomState`` for the random number generator. Defaults
         to ``None``, in which case a different seed is chosen each time this
