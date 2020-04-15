@@ -85,7 +85,7 @@ def segment(data, n_states=4, n_inits=10, max_iter=1000, thresh=1e-6,
         data = zscore(data, axis=1)
 
     # Find peaks in the global field power (GFP)
-    gfp = np.mean(data ** 2, axis=0)
+    gfp = np.std(data, axis=0)
     peaks, _ = find_peaks(gfp, distance=min_peak_dist)
     n_peaks = len(peaks)
 
@@ -110,7 +110,7 @@ def segment(data, n_states=4, n_inits=10, max_iter=1000, thresh=1e-6,
         maps = _mod_kmeans(data[:, peaks], n_states, n_inits, max_iter, thresh,
                            random_state, verbose)
         activation = maps.dot(data)
-        segmentation = np.argmax(activation ** 2, axis=0)
+        segmentation = np.argmax(np.abs(activation), axis=0)
         map_corr = _corr_vectors(data, maps[segmentation].T)
 
         # Compare across iterations using global explained variance (GEV) of
@@ -225,7 +225,7 @@ def plot_segmentation(segmentation, data, times):
     times : list of float
         The time-stamp for each sample.
     """
-    gfp = np.mean(data ** 2, axis=0)
+    gfp = np.std(data, axis=0)
 
     n_states = len(np.unique(segmentation))
     plt.figure(figsize=(6 * np.ptp(times), 2))
