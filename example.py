@@ -2,12 +2,14 @@ import mne
 import microstates
 
 from mne.datasets import sample
-fname = sample.data_path() + '/MEG/sample/sample_audvis_filt-0-40_raw.fif'
+fname = sample.data_path() + '/MEG/sample/sample_audvis_raw.fif'
 raw = mne.io.read_raw_fif(fname, preload=True)
-events = mne.find_events(raw)
 raw.info['bads'] = ['MEG 2443', 'EEG 053']
+
+# Microstate analysis needs average reference
 raw.set_eeg_reference('average')
-raw.pick_types(meg='mag', eeg=True, eog=True, ecg=True)
+
+# Filter the data. Make sure slow drifts are eliminated.
 raw.filter(1, 40)
 
 # Clean EOG with ICA
@@ -21,11 +23,11 @@ raw = ica.apply(raw)
 # raw.pick_types(meg=False, eeg=True)
 raw.pick_types(meg='mag', eeg=False)
 
-# Segment the data in 6 microstates
+# Segment the data into 5 microstates
 maps, segmentation = microstates.segment(raw.get_data(), n_states=5,
                                          random_state=0)
 
-# Plot the topographic maps of the microstates and the segmentation
+# Plot the topographic maps of the microstates and part of the segmentation
 microstates.plot_maps(maps, raw.info)
 microstates.plot_segmentation(segmentation[:500], raw.get_data()[:, :500],
                               raw.times[:500])
