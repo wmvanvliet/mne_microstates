@@ -5,6 +5,7 @@ from mne.datasets import sample
 fname = sample.data_path() + '/MEG/sample/sample_audvis_raw.fif'
 raw = mne.io.read_raw_fif(fname, preload=True)
 raw.info['bads'] = ['MEG 2443', 'EEG 053']
+raw.pick_types(meg='mag', eeg=True, eog=True, ecg=True)
 
 # Microstate analysis needs average reference
 raw.set_eeg_reference('average')
@@ -24,10 +25,11 @@ raw = ica.apply(raw)
 raw.pick_types(meg='mag', eeg=False)
 
 # Segment the data into 5 microstates
-maps, segmentation = microstates.segment(raw.get_data(), n_states=5,
-                                         random_state=0)
+maps, segmentation, polarity = microstates.segment(raw.get_data(), n_states=5,
+                                                   random_state=0,
+                                                   return_polarity=True)
 
 # Plot the topographic maps of the microstates and part of the segmentation
 microstates.plot_maps(maps, raw.info)
 microstates.plot_segmentation(segmentation[:500], raw.get_data()[:, :500],
-                              raw.times[:500])
+                              raw.times[:500], polarity=polarity)

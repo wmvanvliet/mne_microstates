@@ -23,7 +23,7 @@ from mne.utils import logger, verbose
 @verbose
 def segment(data, n_states=4, n_inits=10, max_iter=1000, thresh=1e-6,
             normalize=False, min_peak_dist=2, max_n_peaks=10000,
-            random_state=None, verbose=None):
+            return_polarity=False, random_state=None, verbose=None):
     """Segment a continuous signal into microstates.
 
     Peaks in the global field power (GFP) are used to find microstates, using a
@@ -56,6 +56,9 @@ def segment(data, n_states=4, n_inits=10, max_iter=1000, thresh=1e-6,
     max_n_peaks : int | None
         Maximum number of GFP peaks to use in the k-means algorithm. Chosen
         randomly. Set to ``None`` to use all peaks. Defaults to 10000.
+    return_polarity : bool
+        Whether to return the polarity of the activation.
+        Defaults to ``False``.
     random_state : int | numpy.random.RandomState | None
         The seed or ``RandomState`` for the random number generator. Defaults
         to ``None``, in which case a different seed is chosen each time this
@@ -70,6 +73,9 @@ def segment(data, n_states=4, n_inits=10, max_iter=1000, thresh=1e-6,
     segmentation : ndarray, shape (n_samples,)
         For each sample, the index of the microstate to which the sample has
         been assigned.
+    polarity : ndarray, shape (n_samples,)
+        For each sample, the polarity (+1 or -1) of the activation on the
+        currently activate map.
 
     References
     ----------
@@ -106,12 +112,14 @@ def segment(data, n_states=4, n_inits=10, max_iter=1000, thresh=1e-6,
     best_gev = 0
     best_maps = None
     best_segmentation = None
+    best_polarity = None
     for _ in range(n_inits):
         maps = _mod_kmeans(data[:, peaks], n_states, n_inits, max_iter, thresh,
                            random_state, verbose)
         activation = maps.dot(data)
         segmentation = np.argmax(np.abs(activation), axis=0)
         map_corr = _corr_vectors(data, maps[segmentation].T)
+        # assigned_activations = np.choose(segmentations, activation)
 
         # Compare across iterations using global explained variance (GEV) of
         # the found microstates.
@@ -119,8 +127,12 @@ def segment(data, n_states=4, n_inits=10, max_iter=1000, thresh=1e-6,
         logger.info('GEV of found microstates: %f' % gev)
         if gev > best_gev:
             best_gev, best_maps, best_segmentation = gev, maps, segmentation
+            best_polarity = np.sign(np.choose(segmentation, activation))
 
-    return best_maps, best_segmentation
+    if return_polarity:
+        return best_maps, best_segmentation, best_polarity
+    else:
+        return best_maps, best_segmentation
 
 
 @verbose
@@ -148,7 +160,6 @@ def _mod_kmeans(data, n_states=4, n_inits=10, max_iter=1000, thresh=1e-6,
         # Assign each sample to the best matching microstate
         activation = maps.dot(data)
         segmentation = np.argmax(np.abs(activation), axis=0)
-        # assigned_activations = np.choose(segmentations, all_activations)
 
         # Recompute the topographic maps of the microstates, based on the
         # samples that were assigned to each state.
@@ -214,7 +225,7 @@ def _corr_vectors(A, B, axis=0):
     return np.sum(An * Bn, axis=axis)
 
 
-def plot_segmentation(segmentation, data, times):
+def plot_segmentation(segmentation, data, times, polarity=None):
     """Plot a microstate segmentation.
 
     Parameters
@@ -224,8 +235,12 @@ def plot_segmentation(segmentation, data, times):
         been assigned.
     times : list of float
         The time-stamp for each sample.
+    polarity : list of int | None
+        For each sample in time, the polarity (+1 or -1) of the activation.
     """
     gfp = np.std(data, axis=0)
+    if polarity is not None:
+        gfp *= polarity
 
     n_states = len(np.unique(segmentation))
     plt.figure(figsize=(6 * np.ptp(times), 2))
@@ -238,7 +253,6 @@ def plot_segmentation(segmentation, data, times):
     sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
     sm.set_array([])
     plt.colorbar(sm)
-    plt.yticks([])
     plt.xlabel('Time (s)')
     plt.title('Segmentation into %d microstates' % n_states)
     plt.autoscale(tight=True)
