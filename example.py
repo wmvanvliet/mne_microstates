@@ -32,4 +32,4 @@ maps, segmentation, polarity = microstates.segment(raw.get_data(), n_states=5,
 # Plot the topographic maps of the microstates and part of the segmentation
 microstates.plot_maps(maps, raw.info)
 microstates.plot_segmentation(segmentation[:500], raw.get_data()[:, :500],
-                              raw.times[:500], polarity=polarity)
+                              raw.times[:500], polarity=polarity[:500])
