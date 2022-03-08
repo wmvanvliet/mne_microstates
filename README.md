@@ -10,6 +10,16 @@ brain electrical activity into microstates: model estimation and validation.
 IEEE Transactions on Biomedical Engineering.
 https://ieeexplore.ieee.org/document/391164
 
+
+## Installation
+
+Install this package using PIP:
+
+```
+pip install mne-microstates
+```
+
+
 ## Usage
 
 ```python
