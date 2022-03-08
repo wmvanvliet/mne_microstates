@@ -13,11 +13,13 @@ import warnings
 import numpy as np
 from scipy.stats import zscore
 from scipy.signal import find_peaks
-from scipy.linalg import eigh
 import matplotlib as mpl
 from matplotlib import pyplot as plt
 import mne
 from mne.utils import logger, verbose
+
+
+__version__ = '0.2'
 
 
 @verbose
@@ -169,11 +171,6 @@ def _mod_kmeans(data, n_states=4, n_inits=10, max_iter=1000, thresh=1e-6,
                 warnings.warn('Some microstates are never activated')
                 maps[state] = 0
                 continue
-           
-            # Find largest eigenvector
-            # cov = data[:, idx].dot(data[:, idx].T)
-            # _, vec = eigh(cov, eigvals=(n_channels - 1, n_channels - 1))
-            # maps[state] = vec.ravel()
             maps[state] = data[:, idx].dot(activation[state, idx])
             maps[state] /= np.linalg.norm(maps[state])
 
