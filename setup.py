@@ -1,5 +1,6 @@
 #! /usr/bin/env python
 from setuptools import setup
+import codecs
 import os
 
 # get the version (don't import, so dependencies are not needed)
@@ -25,7 +26,8 @@ if __name__ == "__main__":
         license='BSD-3',
         url='https://github.com/wmvanvliet/mne_microstates',
         version=version,
-        long_description=open('README.md').read(),
+        long_description=codecs.open('README.md', encoding='utf8').read(),
+        long_description_content_type='text/markdown',
         classifiers=['Intended Audience :: Science/Research',
                      'Intended Audience :: Developers',
                      'License :: OSI Approved',
