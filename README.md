@@ -28,7 +28,7 @@ import mne_microstates
 
 # Load MNE sample dataset
 from mne.datasets import sample
-fname = sample.data_path() + '/MEG/sample/sample_audvis_filt.fif'
+fname = sample.data_path() / 'MEG/sample/sample_audvis_filt.fif'
 raw = mne.io.read_raw_fif(fname, preload=True)
 
 # Always use an average EEG reference when doing microstate analysis

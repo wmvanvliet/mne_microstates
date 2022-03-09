@@ -2,7 +2,7 @@ import mne
 import mne_microstates
 
 from mne.datasets import sample
-fname = sample.data_path() + '/MEG/sample/sample_audvis_raw.fif'
+fname = (sample.data_path() / 'MEG/sample/sample_audvis_raw.fif')
 raw = mne.io.read_raw_fif(fname, preload=True)
 raw.info['bads'] = ['MEG 2443', 'EEG 053']
 raw.pick_types(meg='mag', eeg=True, eog=True, ecg=True)
