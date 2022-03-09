@@ -5,7 +5,7 @@ import os
 
 # get the version (don't import, so dependencies are not needed)
 version = None
-with open('microstates.py') as fid:
+with open('mne_microstates.py') as fid:
     for line in (line.strip() for line in fid):
         if line.startswith('__version__'):
             version = line.split('=')[1].strip().strip('\'')
