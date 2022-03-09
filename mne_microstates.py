@@ -19,7 +19,7 @@ import mne
 from mne.utils import logger, verbose
 
 
-__version__ = '0.2'
+__version__ = '0.3'
 
 
 @verbose
