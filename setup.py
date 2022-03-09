@@ -39,6 +39,6 @@ if __name__ == "__main__":
                      'Operating System :: Unix',
                      'Operating System :: MacOS'],
         platforms='any',
-        py_modules=['microstates'],
+        py_modules=['mne_microstates'],
         install_requires=['numpy', 'scipy', 'mne'],
     )
