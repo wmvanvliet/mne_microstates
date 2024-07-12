@@ -222,7 +222,7 @@ def _corr_vectors(A, B, axis=0):
     return np.sum(An * Bn, axis=axis)
 
 
-def plot_segmentation(segmentation, data, times, polarity=None):
+def plot_segmentation(segmentation, data, times, polarity=None, show=True):
     """Plot a microstate segmentation.
 
     Parameters
@@ -254,21 +254,27 @@ def plot_segmentation(segmentation, data, times, polarity=None):
     plt.title('Segmentation into %d microstates' % n_states)
     plt.autoscale(tight=True)
     plt.tight_layout()
+    if show:
+        plt.show()
 
 
-def plot_maps(maps, info):
+def plot_maps(maps, info, show=True):
     """Plot prototypical microstate maps.
 
     Parameters
     ----------
-    maps : ndarray, shape (n_channels, n_maps)
+    maps : ndarray, shape (n_maps, n_channels)
         The prototypical microstate maps.
     info : instance of mne.io.Info
         The info structure of the dataset, containing the location of the
         sensors.
     """
-    plt.figure(figsize=(2 * len(maps), 2))
-    for i, map in enumerate(maps):
-        plt.subplot(1, len(maps), i + 1)
-        mne.viz.plot_topomap(map, info)
-        plt.title('%d' % i)
+    assert len(maps) != 1, 'Only one map found, cannot plot'
+    fig, axes = plt.subplots(1, len(maps), figsize=(2 * len(maps), 2))
+    for i, (ax, map) in enumerate(zip(axes, maps)):
+        mne.viz.plot_topomap(map, info, axes=ax, show=False)
+        ax.set_title('Microstate %d' % (i+1))
+    plt.tight_layout()
+    if show:
+        plt.show()
+    
