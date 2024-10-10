@@ -141,7 +141,7 @@ def segment(data, n_states=4, n_inits=10, max_iter=1000, thresh=1e-6,
         output.append(best_polarity)
     if return_best_gev:
         output.append(best_gev)
-    return output**
+    return *output
 
 
 @verbose
