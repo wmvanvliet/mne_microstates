@@ -12,7 +12,7 @@ https://ieeexplore.ieee.org/document/391164
 Install this package using PIP:
 
 ```
-pip install git+https://github.com/KishiBayes/mne_microstates/blob/master/README.md
+pip install git+https://github.com/KishiBayes/mne_microstates
 ```
 
 
