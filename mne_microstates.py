@@ -25,7 +25,8 @@ __version__ = '0.4dev0'
 @verbose
 def segment(data, n_states=4, n_inits=10, max_iter=1000, thresh=1e-6,
             normalize=False, min_peak_dist=2, max_n_peaks=10000,
-            return_polarity=False, random_state=None, verbose=None):
+            return_polarity=False, random_state=None, verbose=None,
+            return_best_gev=False):
     """Segment a continuous signal into microstates.
 
     Peaks in the global field power (GFP) are used to find microstates, using a
@@ -67,6 +68,8 @@ def segment(data, n_states=4, n_inits=10, max_iter=1000, thresh=1e-6,
         function is called.
     verbose : int | bool | None
         Controls the verbosity.
+    return_best_gev : bool
+        Option to return best golbally explained variance. Defaults to False.
 
     Returns
     -------
@@ -78,6 +81,8 @@ def segment(data, n_states=4, n_inits=10, max_iter=1000, thresh=1e-6,
     polarity : ndarray, shape (n_samples,)
         For each sample, the polarity (+1 or -1) of the activation on the
         currently activate map.
+    gev : float
+        The best global explained variance.
 
     References
     ----------
@@ -131,10 +136,12 @@ def segment(data, n_states=4, n_inits=10, max_iter=1000, thresh=1e-6,
             best_gev, best_maps, best_segmentation = gev, maps, segmentation
             best_polarity = np.sign(np.choose(segmentation, activation))
 
+    output = [best_maps, best_segmentation]
     if return_polarity:
-        return best_maps, best_segmentation, best_polarity
-    else:
-        return best_maps, best_segmentation
+        output.append(best_polarity)
+    if return_best_gev:
+        output.append(best_gev)
+    return output**
 
 
 @verbose
