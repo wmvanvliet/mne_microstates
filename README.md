@@ -1,10 +1,8 @@
 # Microstate analysis for use with MNE-Python
 
-Forked from Pascual Marqui:
-Pascual-Marqui, R. D., Michel, C. M., & Lehmann, D. (1995).  Segmentation of
-brain electrical activity into microstates: model estimation and validation.
-IEEE Transactions on Biomedical Engineering.
-https://ieeexplore.ieee.org/document/391164
+Forked from Marijn van Vliet
+
+Allows return of GEV from main function.
 
 
 ## Installation
