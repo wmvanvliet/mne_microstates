@@ -19,14 +19,14 @@ import mne
 from mne.utils import logger, verbose
 
 
-__version__ = '0.4dev0'
+__version__ = '0.5devkb0'
 
 
 @verbose
 def segment(data, n_states=4, n_inits=10, max_iter=1000, thresh=1e-6,
             normalize=False, min_peak_dist=2, max_n_peaks=10000,
             return_polarity=False, random_state=None, verbose=None,
-            return_best_gev=False):
+            return_best_gev=False, weight_array=None):
     """Segment a continuous signal into microstates.
 
     Peaks in the global field power (GFP) are used to find microstates, using a
@@ -70,6 +70,10 @@ def segment(data, n_states=4, n_inits=10, max_iter=1000, thresh=1e-6,
         Controls the verbosity.
     return_best_gev : bool
         Option to return best golbally explained variance. Defaults to False.
+    weight_array : array-like | None
+        This is an optional array which can be used to weight during the adapted
+        k-means algorithm. It should have the same length as the number of samples
+        in the data. Defaults to None.
 
     Returns
     -------
@@ -93,6 +97,15 @@ def segment(data, n_states=4, n_inits=10, max_iter=1000, thresh=1e-6,
     """
     logger.info('Finding %d microstates, using %d random intitializations' %
                 (n_states, n_inits))
+
+    if weight_array is not None:
+        if type(weight_array) is not np.ndarray:
+            weight_array = np.array(weight_array)
+        if len(weight_array) != data.shape[1]:
+            raise ValueError('Weight array must have the same length as the number of samples in the data.')
+        weighted_analysis = True
+    else:
+        weighted_analysis = False
 
     if normalize:
         data = zscore(data, axis=1)
@@ -122,7 +135,7 @@ def segment(data, n_states=4, n_inits=10, max_iter=1000, thresh=1e-6,
     best_polarity = None
     for _ in range(n_inits):
         maps = _mod_kmeans(data[:, peaks], n_states, n_inits, max_iter, thresh,
-                           random_state, verbose)
+                           random_state, verbose, weighted_analysis, weight_array)
         activation = maps.dot(data)
         segmentation = np.argmax(np.abs(activation), axis=0)
         map_corr = _corr_vectors(data, maps[segmentation].T)
@@ -146,7 +159,7 @@ def segment(data, n_states=4, n_inits=10, max_iter=1000, thresh=1e-6,
 
 @verbose
 def _mod_kmeans(data, n_states=4, n_inits=10, max_iter=1000, thresh=1e-6,
-                random_state=None, verbose=None):
+                random_state=None, verbose=None, weighted_analysis=False, weight_array=None):
     """The modified K-means clustering algorithm.
 
     See :func:`segment` for the meaning of the parameters and return
@@ -157,7 +170,10 @@ def _mod_kmeans(data, n_states=4, n_inits=10, max_iter=1000, thresh=1e-6,
     n_channels, n_samples = data.shape
 
     # Cache this value for later
-    data_sum_sq = np.sum(data ** 2)
+    if weighted_analysis:
+        data_sum_sq = np.sum(data ** 2 * weight_array)
+    else:
+        data_sum_sq = np.sum(data ** 2)
 
     # Select random timepoints for our initial topographic maps
     init_times = random_state.choice(n_samples, size=n_states, replace=False)
@@ -182,7 +198,10 @@ def _mod_kmeans(data, n_states=4, n_inits=10, max_iter=1000, thresh=1e-6,
             maps[state] /= np.linalg.norm(maps[state])
 
         # Estimate residual noise
-        act_sum_sq = np.sum(np.sum(maps[segmentation].T * data, axis=0) ** 2)
+        if weighted_analysis:
+            act_sum_sq = np.sum(np.sum(maps[segmentation].T * data, axis=0) ** 2 * weight_array)
+        else:
+            act_sum_sq = np.sum(np.sum(maps[segmentation].T * data, axis=0) ** 2)
         residual = abs(data_sum_sq - act_sum_sq)
         residual /= float(n_samples * (n_channels - 1))
 
