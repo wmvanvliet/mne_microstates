@@ -1,6 +1,7 @@
 # Microstate analysis for use with MNE-Python
 
-Forked from Marijn van Vliet
+A small module that works with MNE-Python to perform microstate analysis in EEG
+and MEG data.
 
 Allows return of GEV from main function.
 

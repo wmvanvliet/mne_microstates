@@ -19,14 +19,14 @@ import mne
 from mne.utils import logger, verbose
 
 
-__version__ = '0.5devkb0'
+__version__ = '0.4dev0'
 
 
 @verbose
 def segment(data, n_states=4, n_inits=10, max_iter=1000, thresh=1e-6,
             normalize=False, min_peak_dist=2, max_n_peaks=10000,
-            return_polarity=False, random_state=None, verbose=None,
-            return_best_gev=False, weight_array=None):
+            return_polarity=False, return_best_gev=False,
+            weight_array=None, random_state=None, verbose=None):
     """Segment a continuous signal into microstates.
 
     Peaks in the global field power (GFP) are used to find microstates, using a
@@ -62,18 +62,18 @@ def segment(data, n_states=4, n_inits=10, max_iter=1000, thresh=1e-6,
     return_polarity : bool
         Whether to return the polarity of the activation.
         Defaults to ``False``.
-    random_state : int | numpy.random.RandomState | None
-        The seed or ``RandomState`` for the random number generator. Defaults
-        to ``None``, in which case a different seed is chosen each time this
-        function is called.
-    verbose : int | bool | None
-        Controls the verbosity.
     return_best_gev : bool
         Option to return best golbally explained variance. Defaults to False.
     weight_array : array-like | None
         This is an optional array which can be used to weight during the adapted
         k-means algorithm. It should have the same length as the number of samples
         in the data. Defaults to None.
+    random_state : int | numpy.random.RandomState | None
+        The seed or ``RandomState`` for the random number generator. Defaults
+        to ``None``, in which case a different seed is chosen each time this
+        function is called.
+    verbose : int | bool | None
+        Controls the verbosity.
 
     Returns
     -------
