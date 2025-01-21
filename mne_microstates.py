@@ -1,6 +1,6 @@
-"""
-Functions to segment EEG into microstates. Based on the Microsegment toolbox
-for EEGlab, written by Andreas Trier Poulsen [1]_.
+"""Functions to segment EEG into microstates.
+
+Based on the Microsegment toolbox for EEGlab, written by Andreas Trier Poulsen [1]_.
 
 Author: Marijn van Vliet <w.m.vanvliet@gmail.com>
 
@@ -9,6 +9,7 @@ References
 .. [1]  Poulsen, A. T., Pedroni, A., Langer, N., &  Hansen, L. K. (2018).
         Microstate EEGlab toolbox: An introductionary guide. bioRxiv.
 """
+
 import warnings
 import numpy as np
 from scipy.stats import zscore
@@ -19,13 +20,25 @@ import mne
 from mne.utils import logger, verbose
 
 
-__version__ = '0.4dev0'
+__version__ = "0.4dev0"
 
 
 @verbose
-def segment(data, n_states=4, n_inits=10, max_iter=1000, thresh=1e-6,
-            normalize=False, min_peak_dist=2, max_n_peaks=10000,
-            return_polarity=False, random_state=None, verbose=None):
+def segment(
+    data,
+    n_states=4,
+    n_inits=10,
+    max_iter=1000,
+    thresh=1e-6,
+    normalize=False,
+    min_peak_dist=2,
+    max_n_peaks=10000,
+    return_polarity=False,
+    return_best_gev=False,
+    weights=None,
+    random_state=None,
+    verbose=None,
+):
     """Segment a continuous signal into microstates.
 
     Peaks in the global field power (GFP) are used to find microstates, using a
@@ -37,7 +50,7 @@ def segment(data, n_states=4, n_inits=10, max_iter=1000, thresh=1e-6,
     Parameters
     ----------
     data : ndarray, shape (n_channels, n_samples)
-        The data to find the microstates in
+        The data to find the microstates in.
     n_states : int
         The number of unique microstates to find. Defaults to 4.
     n_inits : int
@@ -61,6 +74,12 @@ def segment(data, n_states=4, n_inits=10, max_iter=1000, thresh=1e-6,
     return_polarity : bool
         Whether to return the polarity of the activation.
         Defaults to ``False``.
+    return_best_gev : bool
+        Option to return best golbally explained variance. Defaults to False.
+    weights : array-like | None
+        This is an optional array which can be used to weight each sample during the
+        adapted k-means algorithm. It should have the same length as the number of
+        samples in the data. Defaults to ``None``.
     random_state : int | numpy.random.RandomState | None
         The seed or ``RandomState`` for the random number generator. Defaults
         to ``None``, in which case a different seed is chosen each time this
@@ -78,6 +97,8 @@ def segment(data, n_states=4, n_inits=10, max_iter=1000, thresh=1e-6,
     polarity : ndarray, shape (n_samples,)
         For each sample, the polarity (+1 or -1) of the activation on the
         currently activate map.
+    gev : float
+        The best global explained variance.
 
     References
     ----------
@@ -86,8 +107,21 @@ def segment(data, n_states=4, n_inits=10, max_iter=1000, thresh=1e-6,
            estimation and validation. IEEE Transactions on Biomedical
            Engineering.
     """
-    logger.info('Finding %d microstates, using %d random intitializations' %
-                (n_states, n_inits))
+    logger.info(
+        "Finding %d microstates, using %d random intitializations" % (n_states, n_inits)
+    )
+
+    if weights is not None:
+        if not isinstance(weights, np.ndarray):
+            weight_array = np.array(weights)
+        if len(weights) != data.shape[1]:
+            raise ValueError(
+                "The `weights` array must have the same length as the number of "
+                "samples in the data."
+            )
+        weighted_analysis = True
+    else:
+        weighted_analysis = False
 
     if normalize:
         data = zscore(data, axis=1)
@@ -102,12 +136,11 @@ def segment(data, n_states=4, n_inits=10, max_iter=1000, thresh=1e-6,
         max_n_peaks = min(n_peaks, max_n_peaks)
         if not isinstance(random_state, np.random.RandomState):
             random_state = np.random.RandomState(random_state)
-        chosen_peaks = random_state.choice(n_peaks, size=max_n_peaks,
-                                           replace=False)
+        chosen_peaks = random_state.choice(n_peaks, size=max_n_peaks, replace=False)
         peaks = peaks[chosen_peaks]
 
     # Cache this value for later
-    gfp_sum_sq = np.sum(gfp ** 2)
+    gfp_sum_sq = np.sum(gfp**2)
 
     # Do several runs of the k-means algorithm, keep track of the best
     # segmentation.
@@ -116,8 +149,17 @@ def segment(data, n_states=4, n_inits=10, max_iter=1000, thresh=1e-6,
     best_segmentation = None
     best_polarity = None
     for _ in range(n_inits):
-        maps = _mod_kmeans(data[:, peaks], n_states, n_inits, max_iter, thresh,
-                           random_state, verbose)
+        maps = _mod_kmeans(
+            data[:, peaks],
+            n_states,
+            n_inits,
+            max_iter,
+            thresh,
+            random_state,
+            verbose,
+            weighted_analysis,
+            weight_array,
+        )
         activation = maps.dot(data)
         segmentation = np.argmax(np.abs(activation), axis=0)
         map_corr = _corr_vectors(data, maps[segmentation].T)
@@ -126,21 +168,32 @@ def segment(data, n_states=4, n_inits=10, max_iter=1000, thresh=1e-6,
         # Compare across iterations using global explained variance (GEV) of
         # the found microstates.
         gev = sum((gfp * map_corr) ** 2) / gfp_sum_sq
-        logger.info('GEV of found microstates: %f' % gev)
+        logger.info("GEV of found microstates: %f" % gev)
         if gev > best_gev:
             best_gev, best_maps, best_segmentation = gev, maps, segmentation
             best_polarity = np.sign(np.choose(segmentation, activation))
 
+    output = [best_maps, best_segmentation]
     if return_polarity:
-        return best_maps, best_segmentation, best_polarity
-    else:
-        return best_maps, best_segmentation
+        output.append(best_polarity)
+    if return_best_gev:
+        output.append(best_gev)
+    return tuple(output)
 
 
 @verbose
-def _mod_kmeans(data, n_states=4, n_inits=10, max_iter=1000, thresh=1e-6,
-                random_state=None, verbose=None):
-    """The modified K-means clustering algorithm.
+def _mod_kmeans(
+    data,
+    n_states=4,
+    n_inits=10,
+    max_iter=1000,
+    thresh=1e-6,
+    random_state=None,
+    verbose=None,
+    weighted_analysis=False,
+    weight_array=None,
+):
+    """Performs the modified K-means clustering algorithm.
 
     See :func:`segment` for the meaning of the parameters and return
     values.
@@ -150,7 +203,10 @@ def _mod_kmeans(data, n_states=4, n_inits=10, max_iter=1000, thresh=1e-6,
     n_channels, n_samples = data.shape
 
     # Cache this value for later
-    data_sum_sq = np.sum(data ** 2)
+    if weighted_analysis:
+        data_sum_sq = np.sum(data**2 * weight_array)
+    else:
+        data_sum_sq = np.sum(data**2)
 
     # Select random timepoints for our initial topographic maps
     init_times = random_state.choice(n_samples, size=n_states, replace=False)
@@ -166,27 +222,32 @@ def _mod_kmeans(data, n_states=4, n_inits=10, max_iter=1000, thresh=1e-6,
         # Recompute the topographic maps of the microstates, based on the
         # samples that were assigned to each state.
         for state in range(n_states):
-            idx = (segmentation == state)
+            idx = segmentation == state
             if np.sum(idx) == 0:
-                warnings.warn('Some microstates are never activated')
+                warnings.warn("Some microstates are never activated")
                 maps[state] = 0
                 continue
             maps[state] = data[:, idx].dot(activation[state, idx])
             maps[state] /= np.linalg.norm(maps[state])
 
         # Estimate residual noise
-        act_sum_sq = np.sum(np.sum(maps[segmentation].T * data, axis=0) ** 2)
+        if weighted_analysis:
+            act_sum_sq = np.sum(
+                np.sum(maps[segmentation].T * data, axis=0) ** 2 * weight_array
+            )
+        else:
+            act_sum_sq = np.sum(np.sum(maps[segmentation].T * data, axis=0) ** 2)
         residual = abs(data_sum_sq - act_sum_sq)
         residual /= float(n_samples * (n_channels - 1))
 
         # Have we converged?
         if (prev_residual - residual) < (thresh * residual):
-            logger.info('Converged at %d iterations.' % iteration)
+            logger.info("Converged at %d iterations." % iteration)
             break
 
         prev_residual = residual
     else:
-        warnings.warn('Modified K-means algorithm failed to converge.')
+        warnings.warn("Modified K-means algorithm failed to converge.")
 
     return maps
 
@@ -230,10 +291,14 @@ def plot_segmentation(segmentation, data, times, polarity=None, show=True):
     segmentation : list of int
         For each sample in time, the index of the state to which the sample has
         been assigned.
+    data : ndarray, shape (n_channels, n_samples)
+        The data on which the microstates were computed.
     times : list of float
         The time-stamp for each sample.
     polarity : list of int | None
         For each sample in time, the polarity (+1 or -1) of the activation.
+    show : bool
+        Show figure if ``True``.
     """
     gfp = np.std(data, axis=0)
     if polarity is not None:
@@ -241,17 +306,16 @@ def plot_segmentation(segmentation, data, times, polarity=None, show=True):
 
     n_states = len(np.unique(segmentation))
     plt.figure(figsize=(6 * np.ptp(times), 2))
-    cmap = plt.cm.get_cmap('plasma', n_states)
-    plt.plot(times, gfp, color='black', linewidth=1)
+    cmap = plt.cm.get_cmap("plasma", n_states)
+    plt.plot(times, gfp, color="black", linewidth=1)
     for state, color in zip(range(n_states), cmap.colors):
-        plt.fill_between(times, gfp, color=color,
-                         where=(segmentation == state))
+        plt.fill_between(times, gfp, color=color, where=(segmentation == state))
     norm = mpl.colors.Normalize(vmin=0, vmax=n_states)
     sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
     sm.set_array([])
     plt.colorbar(sm)
-    plt.xlabel('Time (s)')
-    plt.title('Segmentation into %d microstates' % n_states)
+    plt.xlabel("Time (s)")
+    plt.title("Segmentation into %d microstates" % n_states)
     plt.autoscale(tight=True)
     plt.tight_layout()
     if show:
@@ -268,13 +332,14 @@ def plot_maps(maps, info, show=True):
     info : instance of mne.io.Info
         The info structure of the dataset, containing the location of the
         sensors.
+    show : bool
+        Show figure if ``True``.
     """
-    assert len(maps) != 1, 'Only one map found, cannot plot'
+    assert len(maps) != 1, "Only one map found, cannot plot"
     fig, axes = plt.subplots(1, len(maps), figsize=(2 * len(maps), 2))
     for i, (ax, map) in enumerate(zip(axes, maps)):
         mne.viz.plot_topomap(map, info, axes=ax, show=False)
-        ax.set_title('Microstate %d' % (i+1))
+        ax.set_title("Microstate %d" % (i + 1))
     plt.tight_layout()
     if show:
         plt.show()
-    

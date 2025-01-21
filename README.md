@@ -10,6 +10,8 @@ brain electrical activity into microstates: model estimation and validation.
 IEEE Transactions on Biomedical Engineering.
 https://ieeexplore.ieee.org/document/391164
 
+Allows return of GEV from main function.
+
 
 ## Installation
 
@@ -17,6 +19,12 @@ Install this package using PIP:
 
 ```
 pip install mne-microstates
+```
+
+or using conda:
+
+```
+conda install -c conda-forge mne-microstates
 ```
 
 
