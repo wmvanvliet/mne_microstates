@@ -3,6 +3,13 @@
 A small module that works with MNE-Python to perform microstate analysis in EEG
 and MEG data.
 
+To learn more about microstate analysis, read the paper:
+
+Pascual-Marqui, R. D., Michel, C. M., & Lehmann, D. (1995).  Segmentation of
+brain electrical activity into microstates: model estimation and validation.
+IEEE Transactions on Biomedical Engineering.
+https://ieeexplore.ieee.org/document/391164
+
 Allows return of GEV from main function.
 
 
@@ -11,7 +18,13 @@ Allows return of GEV from main function.
 Install this package using PIP:
 
 ```
-pip install git+https://github.com/KishiBayes/mne_microstates
+pip install mne-microstates
+```
+
+or using conda:
+
+```
+conda install -c conda-forge mne-microstates
 ```
 
 
