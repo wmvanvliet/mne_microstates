@@ -59,5 +59,7 @@ mne_microstates.plot_maps(maps, raw.info)
 mne_microstates.plot_segmentation(segmentation[:500], raw.get_data()[:, :500], raw.times[:500])
 ```
 
-## Author
-Marijn van Vliet <w.m.vanvliet@gmail.com>
+## Contributers
+Marijn van Vliet <w.m.vanvliet@gmail.com>  
+Kishi Bayes  
+Liu Ruixiang  
